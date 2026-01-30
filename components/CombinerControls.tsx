@@ -1,6 +1,6 @@
 import React from 'react';
 import { CombinerSettings, OutputFormat } from '../types';
-import { Settings, Download, RefreshCw, FileText } from 'lucide-react';
+import { Settings, Download, RefreshCw } from 'lucide-react';
 
 interface CombinerControlsProps {
   settings: CombinerSettings;
@@ -26,6 +26,15 @@ const CombinerControls: React.FC<CombinerControlsProps> = ({
     onSettingsChange({ ...settings, includeFilenames: !settings.includeFilenames });
   };
 
+  const formats = [
+    { value: OutputFormat.MARKDOWN, label: 'Markdown' },
+    { value: OutputFormat.TXT, label: 'Text' },
+    { value: OutputFormat.HTML, label: 'HTML' },
+    { value: OutputFormat.JSON, label: 'JSON' },
+    { value: OutputFormat.XML, label: 'XML' },
+    { value: OutputFormat.CSV, label: 'CSV' },
+  ];
+
   return (
     <div className="bg-slate-800/50 rounded-2xl border border-slate-700 p-6 space-y-6">
       <div className="flex items-center gap-2 text-lg font-semibold text-slate-200">
@@ -33,24 +42,24 @@ const CombinerControls: React.FC<CombinerControlsProps> = ({
         <h3>Output Configuration</h3>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="space-y-4">
         {/* Output Format */}
         <div className="space-y-3">
           <label className="text-sm font-medium text-slate-400">Format</label>
-          <div className="flex gap-2 p-1 bg-slate-900 rounded-lg border border-slate-700">
-            {[OutputFormat.MARKDOWN, OutputFormat.TXT, OutputFormat.HTML].map((fmt) => (
+          <div className="grid grid-cols-3 gap-2 p-1 bg-slate-900 rounded-lg border border-slate-700">
+            {formats.map((fmt) => (
               <button
-                key={fmt}
-                onClick={() => handleFormatChange(fmt)}
+                key={fmt.value}
+                onClick={() => handleFormatChange(fmt.value)}
                 className={`
-                  flex-1 py-2 px-3 rounded-md text-sm font-medium transition-all
-                  ${settings.outputFormat === fmt 
+                  py-2 px-2 rounded-md text-xs font-medium transition-all
+                  ${settings.outputFormat === fmt.value 
                     ? 'bg-blue-600 text-white shadow-lg' 
                     : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
                   }
                 `}
               >
-                .{fmt}
+                .{fmt.value}
               </button>
             ))}
           </div>
@@ -73,17 +82,19 @@ const CombinerControls: React.FC<CombinerControlsProps> = ({
         </div>
       </div>
 
-      {/* Separator Input */}
-      <div className="space-y-2">
-         <label className="text-sm font-medium text-slate-400">Custom Separator (optional)</label>
-         <input 
-            type="text" 
-            value={settings.separator}
-            onChange={(e) => onSettingsChange({...settings, separator: e.target.value})}
-            placeholder="e.g., --- New File ---"
-            className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-         />
-      </div>
+      {/* Separator Input (Only for text-based formats) */}
+      {[OutputFormat.MARKDOWN, OutputFormat.TXT, OutputFormat.HTML].includes(settings.outputFormat) && (
+        <div className="space-y-2">
+           <label className="text-sm font-medium text-slate-400">Custom Separator</label>
+           <input 
+              type="text" 
+              value={settings.separator}
+              onChange={(e) => onSettingsChange({...settings, separator: e.target.value})}
+              placeholder="e.g., --- New File ---"
+              className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+           />
+        </div>
+      )}
 
       {/* Main Action */}
       <button
@@ -101,12 +112,12 @@ const CombinerControls: React.FC<CombinerControlsProps> = ({
         {isCombining ? (
           <>
             <RefreshCw className="w-5 h-5 animate-spin" />
-            Processing Files...
+            Processing...
           </>
         ) : (
           <>
             <Download className="w-5 h-5" />
-            Combine & Download
+            Download
           </>
         )}
       </button>

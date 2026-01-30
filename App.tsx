@@ -1,12 +1,12 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { FileStatus, UploadedFile, OutputFormat, CombinerSettings } from './types';
 import { generateId, downloadBlob } from './utils/helpers';
-import { processFileContent } from './services/fileProcessing';
+import { processFileContent, resetAI } from './services/fileProcessing';
 
 import DropZone from './components/DropZone';
 import FileItem from './components/FileItem';
 import CombinerControls from './components/CombinerControls';
-import { Sparkles, Layers, FileStack, AlertTriangle } from 'lucide-react';
+import { Sparkles, Layers, FileStack, AlertTriangle, Key } from 'lucide-react';
 
 const App: React.FC = () => {
   const [files, setFiles] = useState<UploadedFile[]>([]);
@@ -15,10 +15,32 @@ const App: React.FC = () => {
     includeFilenames: true,
     separator: '\n\n---\n\n',
   });
+  
+  // API Key State for GH Pages / Static hosting
+  const [localApiKey, setLocalApiKey] = useState(localStorage.getItem('gemini_api_key') || '');
+  const [tempApiKey, setTempApiKey] = useState('');
+  
+  const hasValidKey = !!process.env.API_KEY || !!localApiKey;
 
   // Derived state
   const isProcessingFiles = files.some(f => f.status === FileStatus.PENDING || f.status === FileStatus.PROCESSING);
   const hasCompletedFiles = files.some(f => f.status === FileStatus.COMPLETED);
+
+  const handleSaveKey = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!tempApiKey.trim()) return;
+    
+    localStorage.setItem('gemini_api_key', tempApiKey.trim());
+    setLocalApiKey(tempApiKey.trim());
+    setTempApiKey('');
+    resetAI(); // Reset the AI service to use the new key
+  };
+
+  const clearKey = () => {
+    localStorage.removeItem('gemini_api_key');
+    setLocalApiKey('');
+    resetAI();
+  };
 
   // Auto-process files when they are added
   useEffect(() => {
@@ -85,28 +107,92 @@ const App: React.FC = () => {
     
     if (readyFiles.length === 0) return;
 
-    const combinedContent = readyFiles.map(f => {
-      let section = '';
-      
-      // Add Header
-      if (settings.includeFilenames) {
-        if (settings.outputFormat === OutputFormat.MARKDOWN) {
-          section += `# File: ${f.originalName}\n\n`;
-        } else if (settings.outputFormat === OutputFormat.HTML) {
-          section += `<h2>File: ${f.originalName}</h2>\n`;
-        } else {
-          section += `=== File: ${f.originalName} ===\n\n`;
+    let finalContent = '';
+    let mimeType = 'text/plain;charset=utf-8';
+
+    // 1. Structured Data Formats
+    if (settings.outputFormat === OutputFormat.JSON) {
+      const data = readyFiles.map(f => ({
+        filename: f.originalName,
+        type: f.type,
+        content: f.content
+      }));
+      finalContent = JSON.stringify(data, null, 2);
+      mimeType = 'application/json';
+    
+    } else if (settings.outputFormat === OutputFormat.XML) {
+      const escapeXml = (unsafe: string) => unsafe.replace(/[<>&'"]/g, c => {
+        switch (c) {
+          case '<': return '&lt;';
+          case '>': return '&gt;';
+          case '&': return '&amp;';
+          case '\'': return '&apos;';
+          case '"': return '&quot;';
+          default: return c;
         }
+      });
+      
+      finalContent = '<?xml version="1.0" encoding="UTF-8"?>\n<documents>\n' + 
+        readyFiles.map(f => 
+          `  <document>\n` +
+          `    <filename>${escapeXml(f.originalName)}</filename>\n` +
+          `    <content><![CDATA[${f.content}]]></content>\n` +
+          `  </document>`
+        ).join('\n') + 
+        '\n</documents>';
+      mimeType = 'application/xml';
+
+    } else if (settings.outputFormat === OutputFormat.CSV) {
+      // Simple CSV generation: filename, content
+      const escapeCsv = (str: string) => {
+        const escaped = str.replace(/"/g, '""'); 
+        return `"${escaped}"`;
+      };
+      
+      finalContent = 'filename,content\n' + 
+        readyFiles.map(f => `${escapeCsv(f.originalName)},${escapeCsv(f.content || '')}`).join('\n');
+      mimeType = 'text/csv';
+
+    } else {
+      // 2. Text-Based Formats (MD, TXT, HTML)
+      finalContent = readyFiles.map(f => {
+        let section = '';
+        
+        // Add Header
+        if (settings.includeFilenames) {
+          if (settings.outputFormat === OutputFormat.MARKDOWN) {
+            section += `# File: ${f.originalName}\n\n`;
+          } else if (settings.outputFormat === OutputFormat.HTML) {
+            section += `<h2>File: ${f.originalName}</h2>\n`;
+          } else {
+            section += `=== File: ${f.originalName} ===\n\n`;
+          }
+        }
+
+        // Add Content
+        section += f.content;
+
+        return section;
+      }).join(settings.separator || '\n\n');
+
+      if (settings.outputFormat === OutputFormat.HTML) {
+        mimeType = 'text/html';
+        finalContent = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Combined Documents</title>
+  <style>body { font-family: system-ui, sans-serif; max-width: 800px; margin: 2rem auto; line-height: 1.5; padding: 0 1rem; }</style>
+</head>
+<body>
+${finalContent}
+</body>
+</html>`;
       }
-
-      // Add Content
-      section += f.content;
-
-      return section;
-    }).join(settings.separator || '\n\n');
+    }
 
     // Download
-    const blob = new Blob([combinedContent], { type: 'text/plain;charset=utf-8' });
+    const blob = new Blob([finalContent], { type: mimeType });
     const timestamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
     downloadBlob(blob, `combined_docs_${timestamp}.${settings.outputFormat}`);
   };
@@ -129,14 +215,47 @@ const App: React.FC = () => {
           </p>
         </header>
 
-        {!process.env.API_KEY && (
-           <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-4 flex items-start gap-3">
-             <AlertTriangle className="w-5 h-5 text-yellow-500 shrink-0 mt-0.5" />
-             <div className="text-sm text-yellow-200">
-               <p className="font-semibold">Missing API Key</p>
-               <p className="opacity-80">AI features for PDF/Image extraction are disabled. Only plain text files will be processed locally.</p>
+        {/* API Key Configuration for Static Hosting */}
+        {!hasValidKey ? (
+           <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-4">
+             <div className="flex items-start gap-3">
+               <AlertTriangle className="w-5 h-5 text-yellow-500 shrink-0 mt-0.5" />
+               <div className="flex-1">
+                 <h3 className="text-sm font-semibold text-yellow-200 mb-1">Missing API Key</h3>
+                 <p className="text-sm text-yellow-200/80 mb-3">
+                   To use AI features (PDF/Image processing), please enter your Gemini API Key. 
+                   It will be stored locally in your browser.
+                 </p>
+                 <form onSubmit={handleSaveKey} className="flex gap-2 max-w-md">
+                   <input 
+                     type="password" 
+                     value={tempApiKey}
+                     onChange={(e) => setTempApiKey(e.target.value)}
+                     placeholder="Enter Gemini API Key"
+                     className="flex-1 bg-slate-900/50 border border-yellow-500/30 rounded px-3 py-2 text-sm text-yellow-100 placeholder-yellow-500/30 focus:outline-none focus:border-yellow-500 transition-colors"
+                   />
+                   <button 
+                     type="submit"
+                     disabled={!tempApiKey}
+                     className="px-4 py-2 bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-200 text-sm font-medium rounded transition-colors disabled:opacity-50"
+                   >
+                     Save Key
+                   </button>
+                 </form>
+               </div>
              </div>
            </div>
+        ) : !process.env.API_KEY && (
+          // Show "Managed Key" state if using local storage
+          <div className="flex justify-end">
+            <button 
+              onClick={clearKey}
+              className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-red-400 transition-colors"
+            >
+              <Key className="w-3 h-3" />
+              Clear Local API Key
+            </button>
+          </div>
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

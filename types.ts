@@ -16,9 +16,12 @@ export interface UploadedFile {
 }
 
 export enum OutputFormat {
-  MARKDOWN = 'markdown',
+  MARKDOWN = 'md',
   TXT = 'txt',
   HTML = 'html',
+  JSON = 'json',
+  XML = 'xml',
+  CSV = 'csv',
 }
 
 export interface CombinerSettings {
