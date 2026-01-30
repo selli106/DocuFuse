@@ -1,0 +1,5 @@
+{
+  "name": "DocuFuse",
+  "description": "A powerful document combiner that merges PDF, HTML, JS, RTF, and TXT files into a single unified format using Gemini AI for intelligent text extraction.",
+  "requestFramePermissions": []
+}
