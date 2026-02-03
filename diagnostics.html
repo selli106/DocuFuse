@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DocuFuse Diagnostics</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .status {
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border-left: 4px solid;
+        }
+        .success {
+            background: #d4edda;
+            border-color: #28a745;
+            color: #155724;
+        }
+        .error {
+            background: #f8d7da;
+            border-color: #dc3545;
+            color: #721c24;
+        }
+        .warning {
+            background: #fff3cd;
+            border-color: #ffc107;
+            color: #856404;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        pre {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+        h1 {
+            color: #333;
+        }
+    </style>
+    <script src="https://js.puter.com/v2/"></script>
+</head>
+<body>
+    <h1>🔍 DocuFuse Diagnostics</h1>
+    <p>This page helps diagnose issues with DocuFuse on GitHub Pages.</p>
+    
+    <div id="diagnostics"></div>
+    
+    <h2>Actions</h2>
+    <button onclick="runDiagnostics()">Re-run Diagnostics</button>
+    <button onclick="testPuterAI()">Test Puter.js AI</button>
+    <button onclick="location.href='index.html'">Open Main App</button>
+
+    <script>
+        function createStatus(type, title, message) {
+            return `<div class="status ${type}">
+                <strong>${title}</strong><br>
+                ${message}
+            </div>`;
+        }
+
+        async function runDiagnostics() {
+            const container = document.getElementById('diagnostics');
+            container.innerHTML = '<p>Running diagnostics...</p>';
+            
+            let html = '<h2>Diagnostic Results</h2>';
+            
+            // 1. Check Puter.js
+            if (typeof puter !== 'undefined') {
+                html += createStatus('success', '✓ Puter.js Loaded', 
+                    'The Puter.js library is loaded successfully.');
+                
+                if (puter.ai && puter.ai.chat) {
+                    html += createStatus('success', '✓ Puter.js AI Available', 
+                        'The AI features are accessible.');
+                } else {
+                    html += createStatus('error', '✗ Puter.js AI Not Available', 
+                        'The AI features are not accessible. This will prevent PDF/Image processing.');
+                }
+            } else {
+                html += createStatus('error', '✗ Puter.js Not Loaded', 
+                    'The Puter.js library failed to load. Check your internet connection and browser console.');
+            }
+            
+            // 2. Check Base Path
+            const basePath = window.location.pathname;
+            html += createStatus('success', 'ℹ Current Path', 
+                `Base path: <code>${basePath}</code><br>
+                 Full URL: <code>${window.location.href}</code>`);
+            
+            // 3. Check if we can load modules
+            try {
+                const testImport = await import('https://esm.sh/react@19.2.4');
+                html += createStatus('success', '✓ ESM Module Loading', 
+                    'Can successfully load modules from esm.sh CDN.');
+            } catch (error) {
+                html += createStatus('error', '✗ ESM Module Loading Failed', 
+                    `Cannot load modules from CDN: ${error.message}<br>
+                    This may indicate CORS issues or network problems.`);
+            }
+            
+            // 4. Check localStorage
+            try {
+                localStorage.setItem('test', 'test');
+                localStorage.removeItem('test');
+                html += createStatus('success', '✓ LocalStorage Available', 
+                    'Browser storage is accessible.');
+            } catch (error) {
+                html += createStatus('warning', '⚠ LocalStorage Issues', 
+                    'LocalStorage may not be available. Some features may not work.');
+            }
+            
+            // 5. Browser Info
+            html += createStatus('success', 'ℹ Browser Information', 
+                `User Agent: <pre>${navigator.userAgent}</pre>
+                 Online: ${navigator.onLine ? 'Yes' : 'No'}`);
+            
+            // 6. Check for common GitHub Pages issues
+            if (basePath.includes('/DocuFuse/') && !document.querySelector('base')) {
+                html += createStatus('warning', '⚠ Base Path Configuration', 
+                    'Detected GitHub Pages path but no base tag. Asset loading may fail.');
+            }
+            
+            container.innerHTML = html;
+        }
+
+        async function testPuterAI() {
+            const container = document.getElementById('diagnostics');
+            
+            if (typeof puter === 'undefined') {
+                container.innerHTML = createStatus('error', '✗ Cannot Test', 
+                    'Puter.js is not loaded. Cannot perform AI test.');
+                return;
+            }
+            
+            container.innerHTML = '<p>Testing Puter.js AI... (this may take a few seconds)</p>';
+            
+            try {
+                const response = await puter.ai.chat('Reply with exactly: "Puter.js is working!"', {
+                    model: 'gemini-2.5-flash'
+                });
+                
+                container.innerHTML = createStatus('success', '✓ AI Test Successful', 
+                    `Response received: <pre>${response.message.content}</pre>`);
+            } catch (error) {
+                container.innerHTML = createStatus('error', '✗ AI Test Failed', 
+                    `Error: ${error.message}<br><br>
+                    This could indicate:<br>
+                    • API quota issues<br>
+                    • Network connectivity problems<br>
+                    • Puter.js service issues<br><br>
+                    Check the browser console for more details.`);
+                console.error('Puter AI test error:', error);
+            }
+        }
+
+        // Auto-run diagnostics on load
+        window.addEventListener('load', () => {
+            setTimeout(runDiagnostics, 500);
+        });
+    </script>
+</body>
+</html>

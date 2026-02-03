@@ -31,3 +31,19 @@ This repository is configured for automatic deployment to GitHub Pages.
 4. Push changes to the `main` branch to trigger the deployment
 
 The app will be deployed automatically to `https://<username>.github.io/DocuFuse/`
+
+### Troubleshooting
+
+If your GitHub Pages shows a blank page:
+
+1. **Check Diagnostics**: Visit `https://<username>.github.io/DocuFuse/diagnostics.html`
+   - This page will show if Puter.js is loaded, if modules are working, and identify common issues
+   
+2. **Test Puter.js**: Visit `https://<username>.github.io/DocuFuse/test-puter.html`
+   - Simple test to verify Puter.js AI integration is working
+
+3. **Check Browser Console**: Press F12 and look for errors in the Console tab
+
+4. **Verify Build Success**: Check the Actions tab in GitHub to ensure the workflow completed successfully
+
+For detailed troubleshooting steps, see [TROUBLESHOOTING.md](TROUBLESHOOTING.md)

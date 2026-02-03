@@ -28,20 +28,34 @@
         background: #64748b; 
       }
     </style>
+  <!-- Load Puter.js before anything else -->
   <script src="https://js.puter.com/v2/"></script>
+  
+  <!-- Preload critical resources -->
+  <link rel="modulepreload" href="https://esm.sh/react@19.2.4">
+  <link rel="modulepreload" href="https://esm.sh/react-dom@19.2.4">
+  
   <script type="importmap">
 {
   "imports": {
-    "lucide-react": "https://esm.sh/lucide-react@^0.563.0",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
-    "react/": "https://esm.sh/react@^19.2.4/",
-    "react": "https://esm.sh/react@^19.2.4"
+    "lucide-react": "https://esm.sh/lucide-react@0.563.0",
+    "react-dom/": "https://esm.sh/react-dom@19.2.4/",
+    "react/": "https://esm.sh/react@19.2.4/",
+    "react": "https://esm.sh/react@19.2.4",
+    "react-dom": "https://esm.sh/react-dom@19.2.4",
+    "react-dom/client": "https://esm.sh/react-dom@19.2.4/client"
   }
 }
 </script>
 </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!-- Loading indicator while app initializes -->
+      <div style="display: flex; justify-content: center; align-items: center; height: 100vh; flex-direction: column; gap: 1rem;">
+        <div style="font-size: 2rem;">⏳</div>
+        <div>Loading DocuFuse...</div>
+      </div>
+    </div>
     <script type="module" src="./index.tsx"></script>
   </body>
 </html>

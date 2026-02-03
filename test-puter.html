@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Puter.js Test</title>
+    <script src="https://js.puter.com/v2/"></script>
+</head>
+<body>
+    <h1>Puter.js Integration Test</h1>
+    <button onclick="testPuter()">Test Puter.js</button>
+    <div id="result"></div>
+
+    <script>
+        async function testPuter() {
+            const resultDiv = document.getElementById('result');
+            
+            try {
+                // Check if puter is loaded
+                if (typeof puter === 'undefined') {
+                    resultDiv.innerHTML = '<p style="color: red;">ERROR: Puter.js is not loaded!</p>';
+                    return;
+                }
+
+                resultDiv.innerHTML = '<p>Puter.js detected! Testing AI chat...</p>';
+
+                // Test AI chat
+                const response = await puter.ai.chat('Say "Hello from Puter!" if you can hear me.', {
+                    model: 'gemini-2.5-flash'
+                });
+
+                resultDiv.innerHTML = '<p style="color: green;">SUCCESS!</p>' +
+                    '<p>Response: ' + response.message.content + '</p>';
+
+            } catch (error) {
+                resultDiv.innerHTML = '<p style="color: red;">ERROR: ' + error.message + '</p>';
+                console.error('Puter test error:', error);
+            }
+        }
+
+        // Auto-test on load
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                const resultDiv = document.getElementById('result');
+                if (typeof puter !== 'undefined') {
+                    resultDiv.innerHTML = '<p style="color: green;">✓ Puter.js loaded successfully!</p>';
+                } else {
+                    resultDiv.innerHTML = '<p style="color: red;">✗ Puter.js failed to load!</p>';
+                }
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

@@ -15,7 +15,24 @@ declare const puter: {
 
 // Check if puter is available
 const isPuterAvailable = (): boolean => {
-  return typeof puter !== 'undefined' && puter?.ai?.chat !== undefined;
+  if (typeof window === 'undefined') {
+    console.error('Window object not available');
+    return false;
+  }
+  
+  const globalPuter = (window as any).puter;
+  
+  if (!globalPuter) {
+    console.error('Puter.js global object not found');
+    return false;
+  }
+  
+  if (!globalPuter.ai || !globalPuter.ai.chat) {
+    console.error('Puter.js AI features not available');
+    return false;
+  }
+  
+  return true;
 };
 
 export const processFileContent = async (file: File): Promise<string> => {
@@ -35,8 +52,10 @@ export const processFileContent = async (file: File): Promise<string> => {
 
   // 2. Handle Complex Files (PDF, RTF, Images) via Puter.js AI
   if (!isPuterAvailable()) {
-    throw new Error("Puter.js is not loaded. Please ensure the page is loaded correctly.");
+    throw new Error("Puter.js is not loaded. Please ensure the page is loaded correctly and try refreshing.");
   }
+  
+  const puter = (window as any).puter;
   
   // Ensure we have a valid mimeType.
   let mimeType = file.type;
