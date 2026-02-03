@@ -18,3 +18,16 @@ View your app in AI Studio: https://ai.studio/apps/drive/1d-HDFerVG2e0gCkkuR7SMc
 2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
 3. Run the app:
    `npm run dev`
+
+## Deploy to GitHub Pages
+
+This repository is configured for automatic deployment to GitHub Pages.
+
+### Setup
+
+1. Go to your repository settings on GitHub
+2. Navigate to **Settings** → **Pages**
+3. Under **Build and deployment**, set **Source** to "GitHub Actions"
+4. Push changes to the `main` branch to trigger the deployment
+
+The app will be deployed automatically to `https://<username>.github.io/DocuFuse/`
