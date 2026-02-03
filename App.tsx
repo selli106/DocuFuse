@@ -1,12 +1,12 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { FileStatus, UploadedFile, OutputFormat, CombinerSettings } from './types';
 import { generateId, downloadBlob } from './utils/helpers';
-import { processFileContent, resetAI } from './services/fileProcessing';
+import { processFileContent } from './services/fileProcessingPuter';
 
 import DropZone from './components/DropZone';
 import FileItem from './components/FileItem';
 import CombinerControls from './components/CombinerControls';
-import { Sparkles, Layers, FileStack, AlertTriangle, Key } from 'lucide-react';
+import { Sparkles, Layers, FileStack } from 'lucide-react';
 
 const App: React.FC = () => {
   const [files, setFiles] = useState<UploadedFile[]>([]);
@@ -15,32 +15,10 @@ const App: React.FC = () => {
     includeFilenames: true,
     separator: '\n\n---\n\n',
   });
-  
-  // API Key State for GH Pages / Static hosting
-  const [localApiKey, setLocalApiKey] = useState(localStorage.getItem('gemini_api_key') || '');
-  const [tempApiKey, setTempApiKey] = useState('');
-  
-  const hasValidKey = !!process.env.API_KEY || !!localApiKey;
 
   // Derived state
   const isProcessingFiles = files.some(f => f.status === FileStatus.PENDING || f.status === FileStatus.PROCESSING);
   const hasCompletedFiles = files.some(f => f.status === FileStatus.COMPLETED);
-
-  const handleSaveKey = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!tempApiKey.trim()) return;
-    
-    localStorage.setItem('gemini_api_key', tempApiKey.trim());
-    setLocalApiKey(tempApiKey.trim());
-    setTempApiKey('');
-    resetAI(); // Reset the AI service to use the new key
-  };
-
-  const clearKey = () => {
-    localStorage.removeItem('gemini_api_key');
-    setLocalApiKey('');
-    resetAI();
-  };
 
   // Auto-process files when they are added
   useEffect(() => {
@@ -211,52 +189,9 @@ ${finalContent}
           </h1>
           <p className="text-slate-400 max-w-lg mx-auto text-lg leading-relaxed">
             Combine <span className="text-blue-400 font-medium">PDF, Docs, Code, & Web</span> files into a single unified document. 
-            Powered by Gemini AI for intelligent extraction.
+            Powered by <span className="text-blue-400 font-medium">Puter.js AI</span> for intelligent extraction.
           </p>
         </header>
-
-        {/* API Key Configuration for Static Hosting */}
-        {!hasValidKey ? (
-           <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-4">
-             <div className="flex items-start gap-3">
-               <AlertTriangle className="w-5 h-5 text-yellow-500 shrink-0 mt-0.5" />
-               <div className="flex-1">
-                 <h3 className="text-sm font-semibold text-yellow-200 mb-1">Missing API Key</h3>
-                 <p className="text-sm text-yellow-200/80 mb-3">
-                   To use AI features (PDF/Image processing), please enter your Gemini API Key. 
-                   It will be stored locally in your browser.
-                 </p>
-                 <form onSubmit={handleSaveKey} className="flex gap-2 max-w-md">
-                   <input 
-                     type="password" 
-                     value={tempApiKey}
-                     onChange={(e) => setTempApiKey(e.target.value)}
-                     placeholder="Enter Gemini API Key"
-                     className="flex-1 bg-slate-900/50 border border-yellow-500/30 rounded px-3 py-2 text-sm text-yellow-100 placeholder-yellow-500/30 focus:outline-none focus:border-yellow-500 transition-colors"
-                   />
-                   <button 
-                     type="submit"
-                     disabled={!tempApiKey}
-                     className="px-4 py-2 bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-200 text-sm font-medium rounded transition-colors disabled:opacity-50"
-                   >
-                     Save Key
-                   </button>
-                 </form>
-               </div>
-             </div>
-           </div>
-        ) : !process.env.API_KEY && (
-          // Show "Managed Key" state if using local storage
-          <div className="flex justify-end">
-            <button 
-              onClick={clearKey}
-              className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-red-400 transition-colors"
-            >
-              <Key className="w-3 h-3" />
-              Clear Local API Key
-            </button>
-          </div>
-        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           
@@ -315,8 +250,8 @@ ${finalContent}
                    <span className="text-sm font-semibold">Pro Tip</span>
                  </div>
                  <p className="text-xs text-slate-400 leading-5">
-                   DocuFuse uses <strong>Gemini 2.5</strong> to intelligently read complex formats like PDFs and Images. 
-                   Code and text files are processed locally for instant speed.
+                   DocuFuse uses <strong>Puter.js AI (Gemini 2.5 Flash)</strong> to intelligently read complex formats like PDFs and Images. 
+                   Code and text files are processed locally for instant speed. No API key needed!
                  </p>
                </div>
              </div>
