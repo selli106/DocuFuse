@@ -154,7 +154,6 @@ export const processFileContent = async (file: File): Promise<string> => {
     throw new Error(msg);
   }
 };
-};
 
 // No-op for compatibility - Puter.js handles auth automatically
 export const resetAI = () => {};
