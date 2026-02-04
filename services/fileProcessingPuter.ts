@@ -40,6 +40,12 @@ export const processFileContent = async (file: File): Promise<string> => {
   if (file.size === 0) {
     throw new Error("File appears to be empty (0 bytes).");
   }
+  
+  // Check file size - limit to 50MB for safety
+  const maxSize = 50 * 1024 * 1024; // 50MB
+  if (file.size > maxSize) {
+    throw new Error(`File is too large (${(file.size / 1024 / 1024).toFixed(2)}MB). Maximum size is 50MB.`);
+  }
 
   // 1. Handle Plain Text locally to save tokens and time
   if (isPlainTextFile(file.type, file.name)) {
@@ -100,6 +106,8 @@ export const processFileContent = async (file: File): Promise<string> => {
   const base64Data = await readFileAsBase64(file);
   const dataUrl = `data:${mimeType};base64,${base64Data}`;
   
+  console.log(`Processing ${file.name} (${file.type || mimeType}) via Puter.js AI...`);
+  
   try {
     // Use puter.ai.chat with image/document data URL for vision capabilities
     const response = await puter.ai.chat(
@@ -110,19 +118,42 @@ export const processFileContent = async (file: File): Promise<string> => {
       { model: AI_MODEL_DOCS }
     );
 
-    return response.message?.content || "";
+    const content = response.message?.content || "";
+    console.log(`Successfully processed ${file.name}, extracted ${content.length} characters`);
+    return content;
   } catch (error: any) {
     console.error("Puter.js AI processing error:", error);
-    let msg = error.message || "Unknown error";
     
+    // Extract meaningful error message
+    let msg = error?.message || error?.toString?.() || "Unknown error occurred";
+    
+    // Parse specific error conditions
     if (msg.includes("document has no pages")) {
       msg = "AI could not read pages from this PDF. It may be password-protected, encrypted, or contain unsupported formatting.";
     } else if (msg.includes("400") || msg.includes("INVALID_ARGUMENT")) {
       msg = "Unsupported file format or content could not be parsed by AI.";
+    } else if (msg.includes("401") || msg.includes("unauthorized") || msg.includes("permission")) {
+      msg = "Authentication failed. Please ensure Puter.js is properly configured.";
+    } else if (msg.includes("429") || msg.includes("quota") || msg.includes("rate limit")) {
+      msg = "API rate limit exceeded. Please wait a moment and try again.";
+    } else if (msg.includes("timeout")) {
+      msg = "Request timed out. The file may be too large or the API is slow. Please try again.";
+    } else if (msg.includes("network") || msg.includes("fetch")) {
+      msg = "Network error occurred. Please check your internet connection.";
+    } else if (!msg || msg === "Unknown") {
+      msg = `File processing failed: ${error?.status || 'unknown status'}. Please check the browser console for details.`;
     }
     
-    throw new Error(`${msg}`);
+    console.error(`Error processing ${file.name}:`, {
+      originalError: error,
+      message: msg,
+      status: error?.status,
+      code: error?.code
+    });
+    
+    throw new Error(msg);
   }
+};
 };
 
 // No-op for compatibility - Puter.js handles auth automatically
