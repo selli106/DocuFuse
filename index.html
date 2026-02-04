@@ -28,13 +28,7 @@
         background: #64748b; 
       }
     </style>
-  <!-- Load Puter.js asynchronously - don't block app initialization -->
-  <script src="https://js.puter.com/v2/" defer></script>
-  
-  <!-- Preload critical resources -->
-  <link rel="modulepreload" href="https://esm.sh/react@19.2.4">
-  <link rel="modulepreload" href="https://esm.sh/react-dom@19.2.4">
-  
+  <!-- Import map for ESM modules -->
   <script type="importmap">
 {
   "imports": {
@@ -56,6 +50,11 @@
         <div>Loading DocuFuse...</div>
       </div>
     </div>
+    
+    <!-- Load app first -->
     <script type="module" src="./index.tsx"></script>
+    
+    <!-- Load Puter.js after app starts (non-critical) -->
+    <script src="https://js.puter.com/v2/"></script>
   </body>
 </html>
