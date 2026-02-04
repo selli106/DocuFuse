@@ -7,7 +7,12 @@ const AI_MODEL_DOCS = 'gemini-2.5-flash';
 declare const puter: {
   ai: {
     chat: (
-      prompt: string | Array<{ type: string; text?: string; imageUrl?: string }>,
+      prompt:
+        | string
+        | Array<{
+            role: string;
+            content: Array<{ type: string; text?: string; imageUrl?: string }>;
+          }>,
       options?: { model?: string }
     ) => Promise<{ message: { content: string } }>;
   };
@@ -112,8 +117,13 @@ export const processFileContent = async (file: File): Promise<string> => {
     // Use puter.ai.chat with image/document data URL for vision capabilities
     const response = await puter.ai.chat(
       [
-        { type: "image", imageUrl: dataUrl },
-        { type: "text", text: prompt }
+        {
+          role: "user",
+          content: [
+            { type: "image", imageUrl: dataUrl },
+            { type: "text", text: prompt }
+          ]
+        }
       ],
       { model: AI_MODEL_DOCS }
     );
