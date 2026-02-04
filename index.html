@@ -28,8 +28,8 @@
         background: #64748b; 
       }
     </style>
-  <!-- Load Puter.js before anything else -->
-  <script src="https://js.puter.com/v2/"></script>
+  <!-- Load Puter.js asynchronously - don't block app initialization -->
+  <script src="https://js.puter.com/v2/" defer></script>
   
   <!-- Preload critical resources -->
   <link rel="modulepreload" href="https://esm.sh/react@19.2.4">
