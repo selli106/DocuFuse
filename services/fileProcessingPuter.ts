@@ -89,10 +89,10 @@ export const processFileContent = async (file: File): Promise<string> => {
   }
   
   // 3. Construct Prompt
-  let prompt = "Extract all the text content from this file verbatim. Do not summarize. Do not add markdown formatting unless it exists in the source. Return ONLY the content.";
+  let prompt = "Extract all the text content from this file verbatim. Do not summarize. Do not add formatting that is not in the source. If any part is unreadable or uncertain, respond with exactly: UNREADABLE. Return ONLY the content or UNREADABLE.";
   
   if (mimeType.startsWith('image/')) {
-    prompt = "Transcribe the text found in this image accurately. Return only the text.";
+    prompt = "Transcribe the text found in this image accurately. Do not guess. If any part is unreadable or uncertain, respond with exactly: UNREADABLE. Return ONLY the text or UNREADABLE.";
   } else if (file.name.endsWith('.rtf') || mimeType.includes('rtf')) {
     try {
       const rawRtf = await readFileAsText(file);
@@ -128,7 +128,10 @@ export const processFileContent = async (file: File): Promise<string> => {
       { model: AI_MODEL_DOCS }
     );
 
-    const content = response.message?.content || "";
+    const content = response.message?.content?.trim() || "";
+    if (content === "UNREADABLE") {
+      throw new Error("AI could not read content from this file. It may be scanned, encrypted, or low quality.");
+    }
     console.log(`Successfully processed ${file.name}, extracted ${content.length} characters`);
     return content;
   } catch (error: any) {
