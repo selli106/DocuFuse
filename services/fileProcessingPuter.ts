@@ -11,10 +11,15 @@ declare const puter: {
         | string
         | Array<{
             role: string;
-            content: Array<{ type: string; text?: string; imageUrl?: string }>;
+            content: Array<{ type: string; text?: string; imageUrl?: string; file?: File }>;
           }>,
       options?: { model?: string }
     ) => Promise<{ message: { content: string } }>;
+    img2txt: (input: string | File) => Promise<string>;
+  };
+  fs: {
+    write: (path: string, file: File) => Promise<{ read: () => Promise<string> }>;
+    delete: (path: string) => Promise<void>;
   };
 };
 
@@ -35,6 +40,10 @@ const isPuterAvailable = (): boolean => {
   if (!globalPuter.ai || !globalPuter.ai.chat) {
     console.error('Puter.js AI features not available');
     return false;
+  }
+
+  if (!globalPuter.ai.img2txt) {
+    console.warn('Puter.js img2txt not available; image processing may fall back to chat API');
   }
   
   return true;
@@ -88,12 +97,69 @@ export const processFileContent = async (file: File): Promise<string> => {
     throw new Error(`Could not determine file type for ${file.name}. Please try converting it to a supported format (PDF, Image, Text).`);
   }
   
-  // 3. Construct Prompt
-  let prompt = "Extract all the text content from this file verbatim. Do not summarize. Do not add formatting that is not in the source. If any part is unreadable or uncertain, respond with exactly: UNREADABLE. Return ONLY the content or UNREADABLE.";
-  
+  // 3. Construct PDF extraction prompt
+  const pdfPrompt = "Extract all the text content from this PDF verbatim. Do not summarize. Do not add formatting that is not in the source. Return ONLY the extracted text content.";
+
+  // 4. Handle images using puter.ai.img2txt
   if (mimeType.startsWith('image/')) {
-    prompt = "Transcribe the text found in this image accurately. Do not guess. If any part is unreadable or uncertain, respond with exactly: UNREADABLE. Return ONLY the text or UNREADABLE.";
-  } else if (file.name.endsWith('.rtf') || mimeType.includes('rtf')) {
+    const base64Data = await readFileAsBase64(file);
+    const dataUrl = `data:${mimeType};base64,${base64Data}`;
+    console.log(`Processing image ${file.name} via puter.ai.img2txt...`);
+    try {
+      if (typeof puter.ai.img2txt !== 'function') {
+        throw new Error("puter.ai.img2txt is not available in this version of Puter.js. Please refresh the page or try again later.");
+      }
+      const text = await puter.ai.img2txt(dataUrl);
+      if (text && text.trim() !== '') {
+        console.log(`Successfully processed image ${file.name}, extracted ${text.trim().length} characters`);
+        return text.trim();
+      }
+      throw new Error("AI could not extract any text from this image. The image may contain no readable text.");
+    } catch (error: any) {
+      console.error("Image OCR error:", error);
+      const msg = error?.message || error?.toString?.() || "Failed to extract text from image.";
+      throw new Error(msg);
+    }
+  }
+
+  // 5. Handle PDFs by passing the File object directly to puter.ai.chat
+  if (mimeType === 'application/pdf') {
+    console.log(`Processing PDF ${file.name} via puter.ai.chat with File object...`);
+    try {
+      const response = await puter.ai.chat(
+        [
+          {
+            role: "user",
+            content: [
+              { type: "file", file: file },
+              { type: "text", text: pdfPrompt }
+            ]
+          }
+        ],
+        { model: AI_MODEL_DOCS }
+      );
+      const content = response.message?.content?.trim() || "";
+      if (!content) {
+        throw new Error("AI returned empty content for this PDF. The file may be scanned, encrypted, or contain no extractable text.");
+      }
+      console.log(`Successfully processed PDF ${file.name}, extracted ${content.length} characters`);
+      return content;
+    } catch (error: any) {
+      console.error("PDF processing error:", error);
+      let msg = error?.message || error?.toString?.() || "Unknown error";
+      if (msg.includes("document has no pages")) {
+        msg = "AI could not read pages from this PDF. It may be password-protected, encrypted, or contain unsupported formatting.";
+      } else if (msg.includes("400") || msg.includes("INVALID_ARGUMENT")) {
+        msg = "Could not parse PDF content. The file may be password-protected or use an unsupported format.";
+      } else if (!msg.includes("empty content")) {
+        msg = `Failed to extract text from PDF: ${msg}`;
+      }
+      throw new Error(msg);
+    }
+  }
+
+  // 6. Handle RTF files
+  if (file.name.endsWith('.rtf') || mimeType.includes('rtf')) {
     try {
       const rawRtf = await readFileAsText(file);
       const rtfResponse = await puter.ai.chat(
@@ -102,26 +168,26 @@ export const processFileContent = async (file: File): Promise<string> => {
       );
       return rtfResponse.message?.content || "";
     } catch (err) {
-       console.warn("RTF Text extraction failed", err);
-       throw new Error("Failed to process RTF file.");
+      console.warn("RTF text extraction failed", err);
+      throw new Error("Failed to process RTF file.");
     }
   }
 
-  // 4. Process PDF / Binary / Images
+  // 7. Fallback for other binary formats via chat with base64 data URL
   const base64Data = await readFileAsBase64(file);
   const dataUrl = `data:${mimeType};base64,${base64Data}`;
-  
+  const fallbackPrompt = "Extract all the text content from this file verbatim. Do not summarize. Do not add formatting that is not in the source. Return ONLY the content.";
+
   console.log(`Processing ${file.name} (${file.type || mimeType}) via Puter.js AI...`);
-  
+
   try {
-    // Use puter.ai.chat with image/document data URL for vision capabilities
     const response = await puter.ai.chat(
       [
         {
           role: "user",
           content: [
             { type: "image", imageUrl: dataUrl },
-            { type: "text", text: prompt }
+            { type: "text", text: fallbackPrompt }
           ]
         }
       ],
@@ -129,23 +195,14 @@ export const processFileContent = async (file: File): Promise<string> => {
     );
 
     const content = response.message?.content?.trim() || "";
-    if (content === "UNREADABLE") {
-      throw new Error("AI could not read content from this file. It may be scanned, encrypted, or low quality.");
-    }
     console.log(`Successfully processed ${file.name}, extracted ${content.length} characters`);
     return content;
   } catch (error: any) {
     console.error("Puter.js AI processing error:", error);
-    
-    // Extract meaningful error message
+
     let msg = error?.message || error?.toString?.() || "Unknown error occurred";
-    
-    // Parse specific error conditions
-    if (msg.includes("document has no pages")) {
-      msg = "AI could not read pages from this PDF. It may be password-protected, encrypted, or contain unsupported formatting.";
-    } else if (msg.includes("400") || msg.includes("INVALID_ARGUMENT")) {
-      msg = "Unsupported file format or content could not be parsed by AI.";
-    } else if (msg.includes("401") || msg.includes("unauthorized") || msg.includes("permission")) {
+
+    if (msg.includes("401") || msg.includes("unauthorized") || msg.includes("permission")) {
       msg = "Authentication failed. Please ensure Puter.js is properly configured.";
     } else if (msg.includes("429") || msg.includes("quota") || msg.includes("rate limit")) {
       msg = "API rate limit exceeded. Please wait a moment and try again.";
@@ -156,14 +213,14 @@ export const processFileContent = async (file: File): Promise<string> => {
     } else if (!msg || msg === "Unknown") {
       msg = `File processing failed: ${error?.status || 'unknown status'}. Please check the browser console for details.`;
     }
-    
+
     console.error(`Error processing ${file.name}:`, {
       originalError: error,
       message: msg,
       status: error?.status,
       code: error?.code
     });
-    
+
     throw new Error(msg);
   }
 };
