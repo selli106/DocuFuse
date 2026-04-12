@@ -58,10 +58,10 @@
       </div>
     </div>
     
-    <!-- Load app first -->
-    <script type="module" src="./index.tsx"></script>
-    
-    <!-- Load Puter.js after app starts (non-critical) -->
+    <!-- Load Puter.js first (required for PDF/AI processing) -->
     <script src="https://js.puter.com/v2/"></script>
+    
+    <!-- Load app after Puter.js is available -->
+    <script type="module" src="./index.tsx"></script>
   </body>
 </html>
