@@ -42,9 +42,15 @@ const App: React.FC = () => {
             : f
         ));
       } catch (error: any) {
+        const errorMessage =
+          error instanceof Error
+            ? error.message
+            : typeof error === 'string'
+              ? error
+              : 'Failed to process file.';
         setFiles(prev => prev.map(f => 
           f.id === fileItem.id 
-            ? { ...f, status: FileStatus.ERROR, errorMessage: error.message } 
+            ? { ...f, status: FileStatus.ERROR, errorMessage } 
             : f
         ));
       }

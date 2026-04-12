@@ -35,6 +35,43 @@ const extractContent = (response: any): string => {
   return typeof raw === 'string' ? raw.trim() : String(raw).trim();
 };
 
+const getErrorMessage = (error: unknown): string => {
+  if (error == null) return 'Unknown error';
+  if (typeof error === 'string') return error;
+
+  if (error instanceof Error) {
+    const msg = error.message;
+    if (typeof msg === 'string' && msg.trim()) return msg.trim();
+    return error.name || 'Unknown error';
+  }
+
+  if (typeof error === 'object') {
+    const err = error as Record<string, any>;
+    const candidates = [
+      err.message,
+      err.error?.message,
+      err.response?.message,
+      err.response?.data?.message,
+      err.statusText,
+      err.code,
+    ];
+
+    for (const candidate of candidates) {
+      if (typeof candidate === 'string' && candidate.trim()) {
+        return candidate.trim();
+      }
+    }
+
+    try {
+      return JSON.stringify(err);
+    } catch {
+      return 'Unknown error';
+    }
+  }
+
+  return String(error);
+};
+
 // Check if puter is available
 const isPuterAvailable = (): boolean => {
   if (typeof window === 'undefined') {
@@ -129,7 +166,7 @@ export const processFileContent = async (file: File): Promise<string> => {
       throw new Error("AI could not extract any text from this image. The image may contain no readable text.");
     } catch (error: any) {
       console.error("Image OCR error:", error);
-      const msg = error?.message || error?.toString?.() || "Failed to extract text from image.";
+      const msg = getErrorMessage(error) || "Failed to extract text from image.";
       throw new Error(msg);
     }
   }
@@ -174,7 +211,7 @@ export const processFileContent = async (file: File): Promise<string> => {
         try { await puter.fs.delete(uploadedPath); } catch (_) { /* ignore */ }
       }
       console.error("PDF processing error:", error);
-      let msg = error?.message || error?.toString?.() || "Unknown error";
+      let msg = getErrorMessage(error);
       if (msg.includes("document has no pages")) {
         msg = "AI could not read pages from this PDF. It may be password-protected, encrypted, or contain unsupported formatting.";
       } else if (msg.includes("400") || msg.includes("INVALID_ARGUMENT")) {
@@ -237,7 +274,7 @@ export const processFileContent = async (file: File): Promise<string> => {
     }
     console.error("Puter.js AI processing error:", error);
 
-    let msg = error?.message || error?.toString?.() || "Unknown error occurred";
+    let msg = getErrorMessage(error) || "Unknown error occurred";
 
     if (msg.includes("401") || msg.includes("unauthorized") || msg.includes("permission")) {
       msg = "Authentication failed. Please ensure Puter.js is properly configured.";
