@@ -23,6 +23,16 @@ declare const puter: {
   };
 };
 
+// Extract text from a puter.ai.chat response, handling both string and array content
+const extractContent = (response: any): string => {
+  const raw = response?.message?.content;
+  if (!raw) return "";
+  if (Array.isArray(raw)) {
+    return raw.map((part: any) => part?.text ?? "").join("").trim();
+  }
+  return typeof raw === 'string' ? raw.trim() : String(raw).trim();
+};
+
 // Check if puter is available
 const isPuterAvailable = (): boolean => {
   if (typeof window === 'undefined') {
@@ -122,23 +132,25 @@ export const processFileContent = async (file: File): Promise<string> => {
     }
   }
 
-  // 5. Handle PDFs by passing the File object directly to puter.ai.chat
+  // 5. Handle PDFs by converting to a base64 data URL and sending via puter.ai.chat
   if (mimeType === 'application/pdf') {
-    console.log(`Processing PDF ${file.name} via puter.ai.chat with File object...`);
+    console.log(`Processing PDF ${file.name} via puter.ai.chat with base64 data...`);
     try {
+      const base64Data = await readFileAsBase64(file);
+      const dataUrl = `data:application/pdf;base64,${base64Data}`;
       const response = await puter.ai.chat(
         [
           {
             role: "user",
             content: [
-              { type: "file", file: file },
+              { type: "image", imageUrl: dataUrl },
               { type: "text", text: pdfPrompt }
             ]
           }
         ],
         { model: AI_MODEL_DOCS }
       );
-      const content = response.message?.content?.trim() || "";
+      const content = extractContent(response);
       if (!content) {
         throw new Error("AI returned empty content for this PDF. The file may be scanned, encrypted, or contain no extractable text.");
       }
@@ -166,7 +178,7 @@ export const processFileContent = async (file: File): Promise<string> => {
         `Decode the following RTF (Rich Text Format) data into plain text. Remove all control codes and formatting metadata. Return only the readable text content:\n\n${rawRtf.substring(0, 500000)}`,
         { model: AI_MODEL_DOCS }
       );
-      return rtfResponse.message?.content || "";
+      return extractContent(rtfResponse) || "";
     } catch (err) {
       console.warn("RTF text extraction failed", err);
       throw new Error("Failed to process RTF file.");
@@ -194,7 +206,7 @@ export const processFileContent = async (file: File): Promise<string> => {
       { model: AI_MODEL_DOCS }
     );
 
-    const content = response.message?.content?.trim() || "";
+    const content = extractContent(response);
     console.log(`Successfully processed ${file.name}, extracted ${content.length} characters`);
     return content;
   } catch (error: any) {
