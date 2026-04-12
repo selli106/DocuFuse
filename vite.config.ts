@@ -35,7 +35,11 @@ export default defineConfig(({ mode }) => {
         sourcemap: true,
         // Improve chunk splitting
         rollupOptions: {
-          input: 'index.html',
+          input: {
+            index: path.resolve(__dirname, 'index.html'),
+            diagnostics: path.resolve(__dirname, 'diagnostics.html'),
+            'test-puter': path.resolve(__dirname, 'test-puter.html'),
+          },
           output: {
             manualChunks: {
               'react-vendor': ['react', 'react-dom'],

@@ -11,7 +11,11 @@ declare const puter: {
         | string
         | Array<{
             role: string;
-            content: Array<{ type: string; text?: string; imageUrl?: string; file?: File }>;
+            content: Array<{
+              type: string;
+              text?: string;
+              image_url?: { url: string };
+            }>;
           }>,
       options?: { model?: string }
     ) => Promise<{ message: { content: string } }>;
@@ -122,16 +126,25 @@ export const processFileContent = async (file: File): Promise<string> => {
     }
   }
 
-  // 5. Handle PDFs by passing the File object directly to puter.ai.chat
+  // 5. Handle PDFs by sending as base64 inline data via puter.ai.chat
   if (mimeType === 'application/pdf') {
-    console.log(`Processing PDF ${file.name} via puter.ai.chat with File object...`);
+    console.log(`Processing PDF ${file.name} via puter.ai.chat with base64 data...`);
+    let base64Data: string;
     try {
+      base64Data = await readFileAsBase64(file);
+    } catch (readError: any) {
+      throw new Error(`Failed to read PDF file: ${readError?.message || 'Unknown read error'}`);
+    }
+    try {
+      const dataUrl = `data:application/pdf;base64,${base64Data}`;
+      // Puter.js (Gemini 2.5 Flash) accepts PDF inline data via the image_url content type,
+      // as Gemini supports PDF parsing through the same inline data mechanism as images.
       const response = await puter.ai.chat(
         [
           {
             role: "user",
             content: [
-              { type: "file", file: file },
+              { type: "image_url", image_url: { url: dataUrl } },
               { type: "text", text: pdfPrompt }
             ]
           }
@@ -186,7 +199,7 @@ export const processFileContent = async (file: File): Promise<string> => {
         {
           role: "user",
           content: [
-            { type: "image", imageUrl: dataUrl },
+            { type: "image_url", image_url: { url: dataUrl } },
             { type: "text", text: fallbackPrompt }
           ]
         }
