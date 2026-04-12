@@ -138,6 +138,9 @@ export const processFileContent = async (file: File): Promise<string> => {
     try {
       const base64Data = await readFileAsBase64(file);
       const dataUrl = `data:application/pdf;base64,${base64Data}`;
+      // Puter.js ai.chat uses `type: "image"` with `imageUrl` as its generic binary
+      // content type. The MIME type embedded in the data URL tells the underlying
+      // Gemini model that this is a PDF, so extraction works correctly.
       const response = await puter.ai.chat(
         [
           {
