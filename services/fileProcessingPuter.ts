@@ -11,14 +11,16 @@ declare const puter: {
         | string
         | Array<{
             role: string;
-            content: Array<{ type: string; text?: string; imageUrl?: string; file?: File }>;
+            content:
+              | string
+              | Array<{ type: string; text?: string; puter_path?: string }>;
           }>,
-      options?: { model?: string }
+      options?: { model?: string; stream?: boolean }
     ) => Promise<{ message: { content: string } }>;
-    img2txt: (input: string | File) => Promise<string>;
+    img2txt: (input: string | File, options?: { provider?: string; model?: string }) => Promise<string>;
   };
   fs: {
-    write: (path: string, file: File) => Promise<{ read: () => Promise<string> }>;
+    write: (path: string, file: File | string) => Promise<{ path: string; read: () => Promise<string> }>;
     delete: (path: string) => Promise<void>;
   };
 };
@@ -132,21 +134,24 @@ export const processFileContent = async (file: File): Promise<string> => {
     }
   }
 
-  // 5. Handle PDFs by converting to a base64 data URL and sending via puter.ai.chat
+  // 5. Handle PDFs by uploading to Puter FS and using puter_path
   if (mimeType === 'application/pdf') {
-    console.log(`Processing PDF ${file.name} via puter.ai.chat with base64 data...`);
+    console.log(`Processing PDF ${file.name} via puter.fs.write + puter.ai.chat with puter_path...`);
+    let uploadedPath = '';
     try {
-      const base64Data = await readFileAsBase64(file);
-      const dataUrl = `data:application/pdf;base64,${base64Data}`;
-      // Puter.js ai.chat uses `type: "image"` with `imageUrl` as its generic binary
-      // content type. The MIME type embedded in the data URL tells the underlying
-      // Gemini model that this is a PDF, so extraction works correctly.
+      // Upload the file to Puter's filesystem
+      const tempName = `temp_docufuse_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+      const puterFile = await puter.fs.write(tempName, file);
+      uploadedPath = puterFile.path;
+      console.log(`Uploaded PDF to Puter FS at: ${uploadedPath}`);
+
+      // Use the file content type with puter_path as documented
       const response = await puter.ai.chat(
         [
           {
             role: "user",
             content: [
-              { type: "image", imageUrl: dataUrl },
+              { type: "file", puter_path: uploadedPath },
               { type: "text", text: pdfPrompt }
             ]
           }
@@ -154,12 +159,20 @@ export const processFileContent = async (file: File): Promise<string> => {
         { model: AI_MODEL_DOCS }
       );
       const content = extractContent(response);
+
+      // Clean up the temporary file
+      try { await puter.fs.delete(uploadedPath); } catch (_) { /* ignore cleanup errors */ }
+
       if (!content) {
         throw new Error("AI returned empty content for this PDF. The file may be scanned, encrypted, or contain no extractable text.");
       }
       console.log(`Successfully processed PDF ${file.name}, extracted ${content.length} characters`);
       return content;
     } catch (error: any) {
+      // Clean up on error too
+      if (uploadedPath) {
+        try { await puter.fs.delete(uploadedPath); } catch (_) { /* ignore */ }
+      }
       console.error("PDF processing error:", error);
       let msg = error?.message || error?.toString?.() || "Unknown error";
       if (msg.includes("document has no pages")) {
@@ -188,20 +201,23 @@ export const processFileContent = async (file: File): Promise<string> => {
     }
   }
 
-  // 7. Fallback for other binary formats via chat with base64 data URL
-  const base64Data = await readFileAsBase64(file);
-  const dataUrl = `data:${mimeType};base64,${base64Data}`;
+  // 7. Fallback for other binary formats via uploading to Puter FS
   const fallbackPrompt = "Extract all the text content from this file verbatim. Do not summarize. Do not add formatting that is not in the source. Return ONLY the content.";
 
   console.log(`Processing ${file.name} (${file.type || mimeType}) via Puter.js AI...`);
+  let uploadedPath = '';
 
   try {
+    const tempName = `temp_docufuse_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+    const puterFile = await puter.fs.write(tempName, file);
+    uploadedPath = puterFile.path;
+
     const response = await puter.ai.chat(
       [
         {
           role: "user",
           content: [
-            { type: "image", imageUrl: dataUrl },
+            { type: "file", puter_path: uploadedPath },
             { type: "text", text: fallbackPrompt }
           ]
         }
@@ -209,10 +225,16 @@ export const processFileContent = async (file: File): Promise<string> => {
       { model: AI_MODEL_DOCS }
     );
 
+    // Clean up
+    try { await puter.fs.delete(uploadedPath); } catch (_) { /* ignore */ }
+
     const content = extractContent(response);
     console.log(`Successfully processed ${file.name}, extracted ${content.length} characters`);
     return content;
   } catch (error: any) {
+    if (uploadedPath) {
+      try { await puter.fs.delete(uploadedPath); } catch (_) { /* ignore */ }
+    }
     console.error("Puter.js AI processing error:", error);
 
     let msg = error?.message || error?.toString?.() || "Unknown error occurred";
