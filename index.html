@@ -48,6 +48,8 @@
   }
 }
 </script>
+  <!-- Load Puter.js with defer so it executes before the app module -->
+  <script defer src="https://js.puter.com/v2/"></script>
 </head>
   <body>
     <div id="root">
@@ -58,10 +60,7 @@
       </div>
     </div>
     
-    <!-- Load app first -->
+    <!-- Load app module -->
     <script type="module" src="./index.tsx"></script>
-    
-    <!-- Load Puter.js after app starts (non-critical) -->
-    <script src="https://js.puter.com/v2/"></script>
   </body>
 </html>
