@@ -1,4 +1,5 @@
 import { readFileAsBase64, readFileAsText, isPlainTextFile } from '../utils/helpers';
+import { tryLocalParse } from './localFileParsing';
 
 // Use Gemini 2.5 Flash model via Puter.js for document parsing capabilities (PDF/Images)
 const AI_MODEL_DOCS = 'gemini-2.5-flash';
@@ -119,7 +120,18 @@ export const processFileContent = async (file: File): Promise<string> => {
     }
   }
 
-  // 2. Handle Complex Files (PDF, RTF, Images) via Puter.js AI
+  // 2. Try local (browser-only) parsing for PDF, EPUB, DOCX
+  try {
+    const localResult = await tryLocalParse(file);
+    if (localResult !== null && localResult.trim().length > 0) {
+      console.log(`Locally parsed ${file.name}, extracted ${localResult.length} characters`);
+      return localResult;
+    }
+  } catch (e: any) {
+    console.warn(`Local parsing failed for ${file.name}, falling back to AI:`, e.message);
+  }
+
+  // 3. Handle Complex Files (PDF, RTF, Images) via Puter.js AI
   if (!isPuterAvailable()) {
     throw new Error("Puter.js is not loaded. Please ensure the page is loaded correctly and try refreshing.");
   }
@@ -132,6 +144,8 @@ export const processFileContent = async (file: File): Promise<string> => {
     const ext = file.name.split('.').pop()?.toLowerCase();
     const mimeMap: Record<string, string> = {
       'pdf': 'application/pdf',
+      'epub': 'application/epub+zip',
+      'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       'png': 'image/png',
       'jpg': 'image/jpeg',
       'jpeg': 'image/jpeg',

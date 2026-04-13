@@ -49,6 +49,8 @@ export const processFileContent = async (file: File): Promise<string> => {
     const ext = file.name.split('.').pop()?.toLowerCase();
     const mimeMap: Record<string, string> = {
       'pdf': 'application/pdf',
+      'epub': 'application/epub+zip',
+      'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       'png': 'image/png',
       'jpg': 'image/jpeg',
       'jpeg': 'image/jpeg',
