@@ -20,7 +20,8 @@ export async function extractPdfText(file: File): Promise<string> {
     const page = await pdf.getPage(i);
     const textContent = await page.getTextContent();
     const pageText = textContent.items
-      .map((item: any) => item.str)
+      .filter((item): item is { str: string } => 'str' in item)
+      .map((item) => item.str)
       .join(' ');
     if (pageText.trim()) {
       pages.push(pageText);
@@ -143,28 +144,20 @@ export async function extractDocxText(file: File): Promise<string> {
 }
 
 /**
- * Strip HTML/XML tags and decode common entities, returning plain text.
+ * Strip HTML/XML tags and decode entities, returning plain text.
+ * Uses DOMParser for safe, complete parsing.
  */
 function stripHtmlTags(html: string): string {
-  return html
-    // Remove script and style blocks
-    .replace(/<script[\s\S]*?<\/script>/gi, '')
-    .replace(/<style[\s\S]*?<\/style>/gi, '')
-    // Add newlines for block elements
-    .replace(/<\/(p|div|h[1-6]|li|tr|br\s*\/?)>/gi, '\n')
-    .replace(/<br\s*\/?>/gi, '\n')
-    // Remove remaining tags
-    .replace(/<[^>]+>/g, '')
-    // Decode common HTML entities
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
-    .replace(/&#(\d+);/g, (_, dec) => String.fromCharCode(parseInt(dec, 10)))
-    // Collapse whitespace
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+
+  // Remove script and style elements entirely
+  doc.querySelectorAll('script, style').forEach((el) => el.remove());
+
+  // Extract text content (DOMParser handles entity decoding automatically)
+  const text = doc.body.textContent || '';
+
+  return text
     .replace(/[ \t]+/g, ' ')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
