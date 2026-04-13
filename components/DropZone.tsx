@@ -64,7 +64,7 @@ const DropZone: React.FC<DropZoneProps> = ({ onFilesAdded }) => {
           Drop documents here or click to upload
         </p>
         <p className="text-sm text-slate-400">
-          Support for PDF, HTML, JS, RTF, TXT, MD, & more
+          Support for PDF, EPUB, DOCX, HTML, JS, RTF, TXT, MD, & more
         </p>
       </div>
     </div>

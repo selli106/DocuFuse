@@ -194,8 +194,8 @@ ${finalContent}
             DocuFuse
           </h1>
           <p className="text-slate-400 max-w-lg mx-auto text-lg leading-relaxed">
-            Combine <span className="text-blue-400 font-medium">PDF, Docs, Code, & Web</span> files into a single unified document. 
-            Powered by <span className="text-blue-400 font-medium">Puter.js AI</span> for intelligent extraction.
+            Combine <span className="text-blue-400 font-medium">PDF, EPUB, DOCX, Code, & Web</span> files into a single unified document. 
+            PDFs, EPUBs, and DOCX are parsed <span className="text-blue-400 font-medium">locally in your browser</span> — no API needed.
           </p>
         </header>
 
@@ -256,8 +256,8 @@ ${finalContent}
                    <span className="text-sm font-semibold">Pro Tip</span>
                  </div>
                  <p className="text-xs text-slate-400 leading-5">
-                   DocuFuse uses <strong>Puter.js AI (Gemini 2.5 Flash)</strong> to intelligently read complex formats like PDFs and Images. 
-                   Code and text files are processed locally for instant speed. No API key needed!
+                   DocuFuse parses <strong>PDF, EPUB, and DOCX</strong> files locally in your browser using pdf.js and JSZip — no AI or API key needed!
+                   Scanned PDFs and images fall back to <strong>Puter.js AI</strong> for OCR. Code and text files are always processed locally.
                  </p>
                </div>
              </div>
